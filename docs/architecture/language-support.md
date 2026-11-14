@@ -782,6 +782,7 @@ dependency surface their syntax supports.
 | Good | **Elixir** | `.ex` `.exs` | `alias` / `import` / `require` / `use` against a `defmodule` index, Mix path convention as fallback |
 | Good | **F#** | `.fs` `.fsx` `.fsi` | `open` against a declared-name index plus the fsproj compile order; `.fsi` files contribute imports only |
 | Good | **Objective-C** | `.m` `.mm` `.h` | `#import` / `#include` through the header-stem index |
+| Good | **Tcl** | `.tcl`, tclsh / wish shebang | `source` paths importer-relative or by unique suffix after stripping a `$dir/` or `[..]/` anchor; `package require` through the repo's `package provide`; commands resolved through `namespace eval` and qualified names |
 
 ---
 

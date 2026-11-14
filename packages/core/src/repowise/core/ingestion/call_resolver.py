@@ -1113,6 +1113,9 @@ class CallResolver(
             return self._with_props(self._global_unique_call(file_path, call, caller_id), call)
 
         # --- Free function call: function() ---
+        if strategies.free_exclusive:
+            hit = self._first_strategy_hit(strategies.free, file_path, call, caller_id)
+            return self._with_props(hit, call)
         return self._with_props(self._resolve_bare_call(file_path, call, caller_id), call)
 
     def _through_kotlin_alias(

@@ -34,6 +34,7 @@ from .scala import resolve_scala_import
 from .shell import resolve_shell_import
 from .sql import resolve_dbt_import
 from .swift import resolve_swift_import
+from .tcl import resolve_tcl_import
 from .typescript import resolve_ts_js_import
 from .vbnet import resolve_vbnet_import
 
@@ -70,6 +71,8 @@ _RESOLVERS: dict[str, ResolverFn] = {
     "php": resolve_php_import,
     # source ./lib.sh + the $SCRIPT_DIR/$(dirname "$0") idioms.
     "shell": resolve_shell_import,
+    # source $dir/x.tcl by anchor-strip + unique suffix; package require by provide.
+    "tcl": resolve_tcl_import,
     # Lightweight regex-tier resolvers (import_support="partial")
     "elixir": resolve_elixir_import,
     "dart": resolve_dart_import,
