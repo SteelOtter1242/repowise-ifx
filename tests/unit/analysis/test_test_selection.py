@@ -1094,3 +1094,10 @@ def test_perl_tests_are_collected_and_their_helpers_are_code() -> None:
     assert is_code_file("t/lib/Helper.pm") and is_code_file("bin/run.pl")
     assert is_test_helper("t/lib/Helper.pm")
     assert not is_runnable_test("t/lib/Helper.pm")
+
+
+def test_tcl_dot_test_files_are_collected_and_their_helpers_are_code() -> None:
+    assert is_runnable_test("tests/parser.test")
+    assert is_code_file("tests/helpers.tcl") and is_test_helper("tests/helpers.tcl")
+    assert not is_runnable_test("tests/all.tcl")
+    assert not is_runnable_test("tests/helpers.tcl")

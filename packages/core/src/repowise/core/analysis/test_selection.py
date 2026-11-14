@@ -221,7 +221,7 @@ _TEST_CODE_SUFFIXES = frozenset(
     {".py", ".go", ".java", ".kt", ".kts", ".scala", ".groovy", ".rb", ".cs", ".fs"}
     | {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}
     | {".rs", ".php", ".swift", ".ex", ".exs", ".dart", ".c", ".cc", ".cpp", ".cls"}
-    | {".t", ".pl", ".pm"}
+    | {".t", ".pl", ".pm", ".test", ".tcl"}
 )
 
 PYTHON_SUFFIXES = (".py",)
