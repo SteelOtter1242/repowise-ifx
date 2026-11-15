@@ -5403,7 +5403,7 @@
       "worst_performer_score": 7.77,
       "worst_test_path": "apex/HealthMarkersTest.cls",
       "worst_test_score": 10.0,
-      "file_count": 72,
+      "file_count": 73,
       "maintainability_average": 9.73,
       "maintainability_hotspot": null,
       "performance_average": 9.8,
@@ -5413,9 +5413,9 @@
       "structure_hotspot": null,
       "history_hotspot": null,
       "production_average": 9.67,
-      "production_file_count": 70,
+      "production_file_count": 71,
       "unanalysed_file_count": 4,
-      "analysed_share": 0.9474
+      "analysed_share": 0.9481
     },
     "repo_function_mod_p80": null,
     "suggestions": [
