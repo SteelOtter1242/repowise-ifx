@@ -74,6 +74,22 @@ class RepoConfigError(ValueError):
     """
 
 
+def analysis_paths(config: dict[str, Any]) -> tuple[str, ...]:
+    """Validated literal repository-relative scopes, not a file inventory."""
+    paths = config.get("analysis_paths", [])
+    if not isinstance(paths, list) or any(not isinstance(value, str) for value in paths):
+        raise RepoConfigError("analysis_paths must be a list of relative directory paths")
+    normalized = []
+    for value in paths:
+        path = value.rstrip("/")
+        if not path or path.startswith(("/", ":", "-")) or any(
+            part in ("", ".", "..") for part in path.split("/")
+        ) or any(char in path for char in "\\*?[]"):
+            raise RepoConfigError(f"Invalid literal analysis path: {value!r}")
+        normalized.append(path)
+    return tuple(sorted(set(normalized)))
+
+
 def get_repowise_dir(repo_path: Path | str) -> Path:
     """Return the repo-local ``.repowise`` directory."""
     return Path(repo_path) / ".repowise"
