@@ -51,6 +51,7 @@ WALK_INPUTS: tuple[str, ...] = (
     "analysis/health/sql_complexity.py",
     "ingestion/extractors/cobol.py",
     "ingestion/extractors/helpers.py",
+    "ingestion/extractors/tcl.py",
     "ingestion/python_overload.py",
     "ingestion/cpp_export_macros.py",
     "ingestion/cpp_macro_facts.py",
