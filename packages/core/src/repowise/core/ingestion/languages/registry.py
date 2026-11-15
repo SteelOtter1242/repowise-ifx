@@ -272,6 +272,10 @@ class LanguageRegistry:
         """Union of test filename infixes, sorted for determinism."""
         return tuple(sorted({p for s in self._specs.values() for p in s.test_infixes}))
 
+    def test_extensions(self) -> frozenset[str]:
+        """Union of extensions that mark a file as a test by themselves."""
+        return frozenset(e for s in self._specs.values() for e in s.test_extensions)
+
     def test_fixture_stems(self) -> frozenset[str]:
         """Union of test-fixture filename stems (conftest, spec_helper, …)."""
         return frozenset(p for s in self._specs.values() for p in s.test_fixture_stems)
