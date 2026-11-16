@@ -80,6 +80,7 @@ from repowise.server.routers import (
     webhooks,
     wins,
     workspace,
+    workspace_metrics,
 )
 from repowise.server.scheduler import setup_scheduler
 from repowise.server.workspace_startup import (
@@ -364,6 +365,7 @@ _ROUTERS = (
     platform,
     settings,
     setup,
+    workspace_metrics,
 )
 
 

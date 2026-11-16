@@ -56,7 +56,8 @@
     "./stats": "./src/stats.ts",
     "./symbols": "./src/symbols.ts",
     "./views": "./src/views.ts",
-    "./workspace": "./src/workspace.ts"
+    "./workspace": "./src/workspace.ts",
+    "./workspace-metrics": "./src/workspace-metrics.ts"
   },
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
