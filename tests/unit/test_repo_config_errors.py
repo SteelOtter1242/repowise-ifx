@@ -14,9 +14,21 @@ import pytest
 
 from repowise.core.repo_config import (
     RepoConfigError,
+    analysis_paths,
     load_repo_config,
     load_repo_env,
 )
+
+
+def test_analysis_paths_normalizes_literal_scopes() -> None:
+    assert analysis_paths({"analysis_paths": ["src/", "foundation", "src"]}) == ("foundation", "src")
+    assert analysis_paths({}) == ()
+
+
+@pytest.mark.parametrize("paths", ["src", [None], ["/src"], ["../src"], ["src/*"], ["src//nested"], [""]])
+def test_invalid_analysis_paths_raise_typed_error(paths) -> None:
+    with pytest.raises(RepoConfigError):
+        analysis_paths({"analysis_paths": paths})
 
 
 def test_malformed_config_raises_typed_error(tmp_path) -> None:
