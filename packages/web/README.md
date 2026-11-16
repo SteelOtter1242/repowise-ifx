@@ -44,17 +44,26 @@ npm ci --no-audit --no-fund
 NEXT_TELEMETRY_DISABLED=1 npm run build --workspace repowise-web
 ```
 
-Set the existing service's working directory to that checkout's `packages/web`
-directory, keeping its current Python executable, credentials and port options.
-The existing launcher discovers the local standalone build from there and
-copies its static/public assets automatically. Restart only after both Python
-and frontend builds are installed. For a foreground check, run the usual
-`repowise serve` command from `packages/web`.
+Keep the existing service's working directory, database/workspace configuration,
+Python executable, credentials and ports unchanged. The working directory also
+controls index discovery; moving it into the source checkout can open the wrong
+database even when the new frontend works.
+
+For an existing pip-installed service, package the standalone output using the
+layout in [the release workflow](../../.github/workflows/publish.yml), then stage
+and verify the matching bundle before stopping the service. Back up
+`~/.repowise/web` and install the new bundle there: `server.js`, `.next`, `public`
+and `node_modules` belong directly inside that cache directory. Its `.version`
+marker must equal the installed Python CLI version. Record the full fork commit
+separately as well, since fork changes may retain the upstream package version.
+Install matching Python code and restart the existing service without changing
+its working directory. Retain the old cache and Python commit for rollback.
 
 Do **not** use `--refresh-ui` for an unreleased fork feature: it bypasses the
-local build and downloads the upstream UI. Rebuild the same checkout when
-upgrading the fork; do not reuse an older standalone directory with newer
-Python source.
+local build/cache and downloads the upstream UI. Rebuild the same checkout when
+upgrading the fork; do not reuse an older standalone directory with newer Python
+source. A matching standalone bundle avoids requiring npm or a build on the VM;
+Node.js 20+ is still required to run it.
 
 ## Documentation
 
