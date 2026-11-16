@@ -131,6 +131,7 @@
     }
   },
   "nav": {
+    "metrics": "度量",
     "review": "审查",
     "dashboard": "仪表盘",
     "settings": "设置",
@@ -160,6 +161,7 @@
     "security": "安全"
   },
   "breadcrumb": {
+    "metrics": "度量",
     "review": "审查",
     "overview": "概览",
     "docs": "文档",
@@ -267,6 +269,25 @@
     "allCurrent": "所有索引都与其检出保持同步。{parts}"
   },
   "views": {
+    "metrics": {
+      "title": "度量",
+      "description": "以图表为主的代码组成、用途、智能体和代码所有权报告。查看或导入报告不会重建索引。",
+      "privacy": "报告可能包含已映射的所有者姓名。请仅与获授权的用户共享。已保存的报告是快照，而非实时分析。",
+      "importTitle": "导入已保存的度量报告",
+      "importHelp": "选择工作区度量扩展生成的 JSON 证据。Repowise 将验证证据并绘制图表，不接受 HTML 上传。",
+      "chooseJson": "度量证据 JSON",
+      "importing": "正在验证并导入报告...",
+      "importFailed": "无法导入报告",
+      "serverImport": "如果 JSON 已在此服务器上，请使用现有 API 凭证将其内容 POST 到此端点，无需索引：",
+      "loadFailed": "无法加载度量报告",
+      "retry": "重试",
+      "loading": "正在加载度量报告...",
+      "empty": "尚未为此代码库导入度量报告。",
+      "report": "已保存的报告",
+      "periods": "{count, plural, =0 {仅快照} other {# 个历史时段}}",
+      "savedSnapshot": "已保存的快照 · 生成器 {version} · 提交：",
+      "frameTitle": "工作区度量图表"
+    },
     "review": {
       "title": "审查",
       "description": "选择一次变更（未提交的改动、分支或提交），查看它影响到哪些代码、应先查看哪些文件、该运行哪些测试以及该找谁审查。"
