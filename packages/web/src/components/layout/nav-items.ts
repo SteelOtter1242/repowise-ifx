@@ -83,6 +83,7 @@ export function repoNavGroups(repoId: string): NavGroup[] {
       id: "start",
       items: [
         { label: "Overview", labelKey: "overview", href: `${base}/overview`, icon: Activity },
+        { label: "Metrics", labelKey: "metrics", href: `${base}/metrics`, icon: BarChart3 },
         { label: "Chat", labelKey: "chat", href: `${base}/chat`, icon: MessageSquare },
         { label: "Review", labelKey: "review", href: `${base}/review`, icon: GitPullRequestArrow },
       ],
