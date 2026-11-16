@@ -31,6 +31,10 @@ editable mode. See [CONTRIBUTING.md](../../.github/CONTRIBUTING.md).
 
 ## Documentation
 
+- Metrics extensions can call `repowise.core.repo_config.analysis_paths(config)`
+  to validate, normalize and deduplicate literal repository-relative analysis
+  scopes. Invalid scopes raise `RepoConfigError`; this read-only helper does not
+  change indexing or traversal.
 - How the system is built: [docs/architecture/](../../docs/architecture/), starting with
   [ARCHITECTURE.md](../../docs/architecture/ARCHITECTURE.md)
 - Adding a language: [docs/architecture/language-support.md](../../docs/architecture/language-support.md)
