@@ -77,6 +77,7 @@ INTERNAL_TAGS = frozenset(
         "setup",
         "stats",
         "telemetry",
+        "workspace-metrics",
     }
 )
 

@@ -47,6 +47,7 @@ _REPO_VIEWS = (
     "commits",
     "decisions",
     "stats",
+    "metrics",
     "usageAndSavings",
     "settings",
 )
