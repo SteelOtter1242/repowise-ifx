@@ -3277,6 +3277,25 @@ export interface MeasuredRun {
   ordering_only: boolean;
 }
 
+export interface MetricsReportList {
+  reports: MetricsReportSummary[];
+}
+
+export interface MetricsReportSummary {
+  id: string;
+  captured_at: string;
+  imported_at: string;
+  generator_version: string;
+  periods: number;
+  contains_names: boolean;
+  commits: Record<string, string>;
+}
+
+export interface MetricsReportView {
+  report: MetricsReportSummary;
+  html: string;
+}
+
 export interface ModuleEdgeResponse {
   source: string;
   target: string;
