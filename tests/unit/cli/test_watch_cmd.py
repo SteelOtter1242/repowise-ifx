@@ -14,6 +14,7 @@ from click.testing import CliRunner
 from repowise.cli.commands import watch_cmd
 from repowise.cli.helpers import CommandTarget
 from repowise.cli.main import cli
+from repowise.core.update_lock import release_own_update_lock
 
 
 @pytest.mark.parametrize(
@@ -142,8 +143,14 @@ class TestSingleRepoTrigger:
 
     def _fire(self, monkeypatch: pytest.MonkeyPatch, tmp_path, **watch_kwargs):
         """Start the watcher, touch a file, and return run_update's kwargs."""
+        from watchdog.observers.polling import PollingObserver
+
+        # Snapshot before start returns, so the write cannot precede observation.
+        observer = PollingObserver(timeout=0.01)
+        monkeypatch.setattr("watchdog.observers.Observer", lambda: observer)
         calls: list[dict] = []
         done = threading.Event()
+        stop = threading.Event()
 
         def fake_run_update(**kwargs):
             calls.append(kwargs)
@@ -167,8 +174,7 @@ class TestSingleRepoTrigger:
             @staticmethod
             def sleep(_seconds: float) -> None:
                 started.set()
-                time.sleep(0.01)
-                if done.is_set():
+                if stop.wait(0.01) or done.is_set():
                     raise KeyboardInterrupt
 
         monkeypatch.setattr(watch_cmd, "time", _Clock)
@@ -180,11 +186,15 @@ class TestSingleRepoTrigger:
             daemon=True,
         )
         watcher.start()
-        assert started.wait(5), "watcher never started"
-
-        (tmp_path / "touched.py").write_text("def x():\n    return 1\n", encoding="utf-8")
-        assert done.wait(10), "no update was triggered by the file change"
-        watcher.join(timeout=10)
+        try:
+            assert started.wait(5), "watcher never started"
+            (tmp_path / "touched.py").write_text("def x():\n    return 1\n", encoding="utf-8")
+            assert done.wait(10), "no update was triggered by the file change"
+        finally:
+            stop.set()
+            watcher.join(timeout=10)
+        assert not watcher.is_alive(), "watcher did not stop"
+        assert not observer.is_alive(), "observer did not stop"
         return calls
 
     def test_a_file_save_runs_an_update_over_the_working_tree(
@@ -222,7 +232,7 @@ class TestReleaseOwnUpdateLock:
         assert try_acquire_update_lock(tmp_path, "abc123") is None
         assert update_lock_path(tmp_path).exists()
 
-        watch_cmd._release_own_update_lock(tmp_path)
+        release_own_update_lock(tmp_path)
 
         assert not update_lock_path(tmp_path).exists()
 
@@ -241,12 +251,12 @@ class TestReleaseOwnUpdateLock:
             encoding="utf-8",
         )
 
-        watch_cmd._release_own_update_lock(tmp_path)
+        release_own_update_lock(tmp_path)
 
         assert lock.exists()
 
     def test_no_lock_is_not_an_error(self, tmp_path) -> None:
-        watch_cmd._release_own_update_lock(tmp_path)
+        release_own_update_lock(tmp_path)
 
 
 class TestEventPaths:

@@ -29,7 +29,7 @@ resolution and health markers are all static.
 [How accurate is the graph per language](#how-accurate-is-the-graph-per-language),
 [Extensions and imports](#extensions-and-imports), [Framework-aware edges](#framework-aware-edges),
 [Beyond code files](#beyond-code-files), [Code-health coverage](#code-health-coverage),
-[Limits](#limits), [Roadmap](#roadmap), [Requesting or adding a language](#requesting-or-adding-a-language)
+[Runtime evidence](#runtime-evidence), [Limits](#limits), [Roadmap](#roadmap), [Requesting or adding a language](#requesting-or-adding-a-language)
 
 ## Tiers
 
@@ -153,15 +153,15 @@ vocabulary, and every origin has exactly one confidence:
 | `self_inherited` | 0.90 | `self` / `this` names a method declared by one ancestor |
 | `enclosing_inherited` | 0.90 | A bare call names a method declared by one ancestor |
 | `package_alias` | 0.88 | The call is qualified by a package the repo declares |
-| `module_alias` | 0.88 | The receiver is an imported module |
+| `module_alias` | 0.88 | The receiver is an imported module, or a Rust module path such as `crate::index::open_ro()` that needs no `use` |
 | `crate_root` | 0.88 | The reference is scoped to its Rust crate |
 | `receiver_import` | 0.88 | The receiver's class was found in an imported file |
-| `receiver_typed_import` | 0.88 | The receiver's type was read off its declaration, then found in an imported file |
+| `receiver_typed_import` | 0.88 | The receiver's type was read off its declaration, then found in an imported file; or a Python local holds the module object a call returned |
 | `receiver_field_import` | 0.88 | The receiver is a field whose type was found in an imported file |
 | `receiver_framework_import` | 0.88 | A framework decorator retyped the receiver to a class in an imported file |
 | `receiver_extension_import` | 0.88 | An imported file extends the receiver's type with this method |
 | `receiver_chain_import` | 0.88 | A chained field receiver resolves through an imported type at its weakest hop |
-| `return_type_import` | 0.88 | The inner call's declared return type was found in an imported file |
+| `return_type_import` | 0.88 | The inner call's declared return type was found in an imported file; or a Python inner call returns an imported module object |
 | `import_merged` | 0.85 | The name is in one of the imported files, but the file is unattributed |
 | `same_target` | 0.85 | The target is a sibling translation unit in the same build target |
 | `receiver_global` | 0.75 | The `(class, method)` pair exists *somewhere* in the repo |
@@ -171,8 +171,9 @@ vocabulary, and every origin has exactly one confidence:
 | `receiver_extension_global` | 0.75 | One extension method in the repo extends this type with this name |
 | `return_type_global` | 0.75 | The returned type and method pair exists somewhere in the repo |
 | `global_unique` | 0.50 | The name is unique repo-wide. **A guess, and labelled as one** |
+| `import_elsewhere` | 0.50 | Python: the name is imported only inside another function of the file, and that one import is read here. **A guess** |
 
-That is the complete vocabulary of 39. You can filter a graph by confidence, and
+That is the complete vocabulary of 40. You can filter a graph by confidence, and
 both the MCP tools and the web UI surface which origin produced an edge, so an
 agent reading an execution flow can tell a fact from an inference. Receiver
 typing, execution-flow terminations and the edge types are in
@@ -304,6 +305,34 @@ Extract Method waits on its grammar:
 [architecture/language-support.md](../architecture/language-support.md#test-quality-markers-per-language).
 Per-marker detail: [CODE_HEALTH.md](CODE_HEALTH.md).
 
+## Runtime evidence
+
+Coverage reports and profiles add measured runtime to the static graph.
+`repowise evidence setup` prints, per build unit, the test command that writes
+coverage and the commands that profile it; `coverage add` and `evidence add`
+read what they write. A coverage report in lcov, Cobertura, JaCoCo, Clover or
+Go cover profile format is read for any language, from any tool. A profile
+joins to code only for Python, Go and JavaScript frames.
+
+| Language | Coverage command from setup | Profiles and benchmarks read |
+|----------|-----------------------------|------------------------------|
+| Python | pytest with pytest-cov | Speedscope (pyinstrument, py-spy), collapsed stacks (py-spy), pytest-benchmark JSON |
+| JavaScript | Jest, Vitest or Bun; c8 around other runners | Speedscope |
+| TypeScript | Jest, Vitest or Bun; c8 around other runners | no, positions are in the compiled JavaScript |
+| Go | `go test -coverprofile` | pprof (`go test -cpuprofile`) |
+| Java / Kotlin | Maven or Gradle with JaCoCo | no |
+| Rust | `cargo llvm-cov` | no |
+| C# | `dotnet test` with coverlet | no |
+| Ruby | RSpec, Rails or Rake tests with SimpleCov | no |
+| PHP | PHPUnit or Pest | no |
+| Apex | none; the Salesforce CLI test-run JSON is read | no |
+| Object Pascal | none | no |
+| Every other language | none | no |
+
+Formats, the join rules and the workload classes:
+[RUNTIME_EVIDENCE.md](RUNTIME_EVIDENCE.md) and
+[TEST_INTELLIGENCE.md](TEST_INTELLIGENCE.md#supported-formats).
+
 ## Limits
 
 - Template dialects (Django/Jinja, Go templates, ERB, Handlebars, Blade,
@@ -315,7 +344,7 @@ Per-marker detail: [CODE_HEALTH.md](CODE_HEALTH.md).
   have known gaps.
 - COBOL dynamic `CALL` targets and free-format source produce no edges.
 - Perl method calls are typed only from `$self`-style invocants, package names and constructor assignments (by variable name within the calling sub, so an inner `my $o` shadowing an outer one is not told apart); `use mro 'c3'` is read as the default depth-first order, and `use Foo;` as importing all of Foo's subs, since its `@EXPORT` list is not read. An imported sub is reached only by its bare name (not as `App::helper()` or as a method of the importing package), and a package's own sub wins over an import of the same name wherever the two sit in the file. Perl 5.38 `class` blocks own their methods, but a `:isa(Parent)` attribute is not read as inheritance.
-- Tcl commands resolve through `namespace eval` blocks and qualified names (the namespace the call runs in, then global); `namespace import`, `namespace path` and commands built at run time are not followed, and commands separated by `;` on one line parse as one.
+- Tcl commands resolve through `namespace eval` blocks and qualified names (the namespace the call runs in, then global). Statically resolved `source` statements execute in the source site's namespace, including through other sourced files; a call with different targets across source contexts is left unresolved. Source cycles are not recursively expanded, and execution order and conditional execution are not modeled. `namespace import`, `namespace path` and commands built at run time are not followed, and commands separated by `;` on one line parse as one. A `.test` file is Tcl only when it loads tcltest (`package require tcltest`, `package require -exact tcltest` or `::tcltest::` in its first 8 KB); it is then a runnable test, and `.tcl` files in a test tree are support code test reach walks through. Like other content-sniffed files, an edited `.test` file is picked up on the next index, not by the file watcher.
 - C has no performance risk support.
 - Salesforce references are followed when the name is literal: runtime-built
   names and objects with no metadata file in the repository get no edge.

@@ -377,6 +377,10 @@ _PER_CALL_MARKERS = frozenset(
 #: Causes whose cost grows with the data by their shape alone.
 _GROWING_MARKERS = frozenset({"goroutine_in_unbounded_loop", "sql_cartesian_join"})
 
+#: The ``confirmed`` facets a measured run gives (``perf.opportunities``):
+#: a leading workload's, or a unit-test run's, kept apart as measured in tests.
+MEASURED_CONFIRMATIONS = frozenset({"measured", "measured_in_tests"})
+
 CostProof = Literal["proven", "unproven"]
 COST_PROOFS: tuple[str, ...] = ("proven", "unproven")
 
@@ -393,6 +397,13 @@ def execution_role(row: Any) -> str:
     return field(row, "execution_role") or perf_facets(row).get("execution_role") or "unknown"
 
 
+def measured(facets: Mapping[str, Any]) -> bool:
+    """Whether a leading workload's newest run ranks the cause's loop owner
+    (the ``measured`` facet). A run overrides the static guesses that the
+    code runs once per process: a cold role or a cold name."""
+    return bool(facets.get("measured"))
+
+
 def lead_reason(marker: str | None, facets: Mapping[str, Any]) -> LowPriority | None:
     """Why a performance cause may not lead, or ``None`` when it may.
 
@@ -402,6 +413,11 @@ def lead_reason(marker: str | None, facets: Mapping[str, Any]) -> LowPriority | 
     unbounded goroutine loop, a cartesian join). A cause with no loop
     (magnitude ``n/a``) is judged as a per-call one. ``unmeasured_cost`` is
     the unproven case: nothing measured the loop, so it is a guess, not a cost.
+    A run that measured the loop owner above the lead bar
+    (:data:`MEASURED_CONFIRMATIONS`, from ``evidence.hotness``'s share rule)
+    proves the cost the loop size could not, so that cause leads; a bounded
+    loop or an unreached per-call cause stays held, as a run says nothing
+    about either.
     """
     if marker in _GROWING_MARKERS:
         return None
@@ -410,7 +426,9 @@ def lead_reason(marker: str | None, facets: Mapping[str, Any]) -> LowPriority | 
         return None if facets.get("exposure") == "entry_reachable" else "unreached_call"
     if magnitude_ == "grows_with_data":
         return None
-    return "bounded_loop" if magnitude_ == "bounded" else "unmeasured_cost"
+    if magnitude_ == "bounded":
+        return "bounded_loop"
+    return None if facets.get("confirmed") in MEASURED_CONFIRMATIONS else "unmeasured_cost"
 
 
 def cost_proof(row: Any) -> CostProof:
@@ -425,6 +443,7 @@ __all__ = [
     "COST_PROOFS",
     "EXTREME_MAGNITUDE",
     "LOW_PRIORITY_LABEL",
+    "MEASURED_CONFIRMATIONS",
     "SIZE_CCN",
     "SIZE_MARKERS",
     "SIZE_NESTING",
@@ -446,6 +465,7 @@ __all__ = [
     "low_priority",
     "magnitude",
     "measure",
+    "measured",
     "measured_nloc",
     "perf_facets",
     "terminal_shaped",

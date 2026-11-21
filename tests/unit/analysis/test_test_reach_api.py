@@ -78,6 +78,19 @@ def test_maps_drop_name_guessed_calls_and_the_legacy_conftest_hint() -> None:
     assert build_walk_maps(None).files == frozenset()
 
 
+def test_maps_drop_a_python_type_checking_import_but_keep_a_typescript_one() -> None:
+    g = _graph(
+        {"pkg/__init__.py": False, "pkg/core.py": False, "web/a.ts": False, "web/t.ts": False},
+        [
+            ("pkg/__init__.py", "pkg/core.py", "imports", {"type_only": True}),
+            ("web/a.ts", "web/t.ts", "imports", {"type_only": True}),
+        ],
+    )
+    maps = build_walk_maps(g)
+    assert "pkg/core.py" not in maps.imports.importers
+    assert maps.imports.importers["web/t.ts"] == ("web/a.ts",)
+
+
 # ---------------------------------------------------------------------------
 # reaching_by_tier: call, then import, then the helper or barrel hop
 # ---------------------------------------------------------------------------
@@ -826,3 +839,18 @@ def test_a_perl_helper_under_t_is_walked_through_not_a_test_leaf() -> None:
     assert is_runnable_test("t/basic.t")
     assert not is_runnable_test("t/lib/Helper.pm")
     assert not is_runnable_test("t/run.pl")
+
+
+def test_a_tcl_helper_under_tests_is_walked_through_to_the_dot_test() -> None:
+    g = _graph(
+        {"tests/parser.test": True, "tests/helpers.tcl": True, "lib/parser.tcl": False},
+        [
+            ("tests/parser.test", "tests/helpers.tcl", "imports"),
+            ("tests/helpers.tcl", "lib/parser.tcl", "imports"),
+        ],
+    )
+    maps = build_walk_maps(g)
+    assert maps.test_files == {"tests/parser.test"}
+    assert reaching_by_tier(maps, ["lib/parser.tcl"])["lib/parser.tcl"].tests == [
+        "tests/parser.test"
+    ]

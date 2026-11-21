@@ -26,10 +26,11 @@ from ..extractors import (
 from ..extractors.cobol import cobol_condition_parent
 from ..extractors.synthetic_symbols import extract_synthetic_symbols
 from ..extractors.synthetic_symbols.csharp_extension_blocks import drop_extension_block_symbols
-from ..extractors.tcl import tcl_proc_namespace
+from ..extractors.tcl import is_tcl_switch_arm, tcl_proc_namespace
 from ..extractors.visibility import py_module_all_names, ts_deferred_export_names
 from ..lang_helpers.pascal import _inherit_pascal_declared_visibility, _pascal_visibility
 from ..lang_helpers.source_prep import cpp_class_head_macros
+from ..lang_helpers.ts_js import ts_assignment_owner, ts_assignment_runs_at_load
 from ..language_configs import LanguageConfig
 from ..languages.perl_packages import (
     is_perl_lexical_sub,
@@ -62,6 +63,7 @@ from ..parser_helpers import (
 )
 from ..symbol_identity import (
     disambiguate_colliding_ids,
+    make_symbol_id,
     split_python_property_mutators,
     symbol_discriminator,
 )
@@ -270,6 +272,8 @@ def _extract_symbols(
     )
 
     file = _SymbolPass(config, file_info, src, cpp_exports, ts_deferred_exports, py_all_names)
+    # TS/JS: index of each ``Foo.prototype.m = ...`` / ``Foo.m = ...`` symbol -> ``Foo``.
+    assigned_owners: dict[int, str] = {}
     for capture_dict in matches:
         built = _symbol_from_match(capture_dict, file)
         if built is None:
@@ -280,6 +284,11 @@ def _extract_symbols(
             symbol.visibility = _pascal_visibility(def_node)
         symbols.append(symbol)
         node_types.append(def_node.type)
+
+        if def_node.type == "assignment_expression" and symbol.parent_name is None:
+            owner = ts_assignment_owner(def_node, src)
+            if owner is not None:
+                assigned_owners[len(symbols) - 1] = owner
 
         if language == "python" and def_node.type == "assignment":
             for alias_symbol in _python_assignment_alias_symbols(
@@ -297,6 +306,9 @@ def _extract_symbols(
         symbols = _dedupe_pascal_interface_symbols(symbols, node_types)
 
     if language in _TS_JS_LANGUAGES:
+        symbols, node_types = _settle_assigned_functions(
+            symbols, node_types, assigned_owners, file_info.path
+        )
         symbols = _keep_ts_overloads_beside_a_body(symbols, node_types)
 
     if language == "swift":
@@ -309,6 +321,66 @@ def _extract_symbols(
         symbols = _dedupe_objc_interface_symbols(symbols, node_types, objc_container_kinds)
 
     return symbols
+
+
+# What a top-level binding must be to own ``Foo.m = ...``: a class or function,
+# or an object held in a const (``const api = {}``; ``api::get`` is how an
+# object-literal method of it is named already).
+_ASSIGNED_METHOD_OWNER_KINDS = frozenset({"class", "function", "variable", "constant"})
+
+
+def _settle_assigned_functions(
+    symbols: list[Symbol], node_types: list[str], owners: dict[int, str], path: str
+) -> tuple[list[Symbol], list[str]]:
+    """Give each function assigned to a property its owner and a unique id.
+
+    ``Foo.prototype.m = ...`` / ``Foo.m = ...`` becomes a method of ``Foo`` when
+    the file declares ``Foo`` as a top-level symbol: it takes the id a class
+    method gets (``path::Foo::m``), so a ``Foo.m()`` call resolves the same
+    way. A ``Foo`` the file does not declare (``Array.prototype.m``, a global)
+    leaves a top-level function named ``m``. *owners* maps a symbol's index to
+    its ``Foo``.
+
+    A property assigned again (a fallback, a polyfill, a class method patched
+    after the fact) is one name: an assignment whose id another symbol of the
+    file holds already is dropped, and of two assignments the first is kept.
+    """
+    if "assignment_expression" not in node_types:
+        return symbols, node_types
+    declared = {
+        s.name
+        for s, node_type in zip(symbols, node_types, strict=True)
+        if s.parent_name is None
+        and node_type != "assignment_expression"
+        and s.kind in _ASSIGNED_METHOD_OWNER_KINDS
+    }
+    for index, owner in owners.items():
+        if owner not in declared:
+            continue
+        symbol = symbols[index]
+        symbols[index] = replace(
+            symbol,
+            id=make_symbol_id(path, owner, symbol.name),
+            qualified_name=_build_qualified_name(path, owner, symbol.name),
+            kind="method",
+            parent_name=owner,
+        )
+    taken = {
+        s.id
+        for s, node_type in zip(symbols, node_types, strict=True)
+        if node_type != "assignment_expression"
+    }
+    kept_symbols: list[Symbol] = []
+    kept_types: list[str] = []
+    for symbol, node_type in zip(symbols, node_types, strict=True):
+        if node_type == "assignment_expression":
+            if symbol.id in taken:
+                continue
+            taken.add(symbol.id)
+        kept_symbols.append(symbol)
+        kept_types.append(node_type)
+    return kept_symbols, kept_types
+
 
 @dataclass
 class _SymbolPass:
@@ -385,7 +457,9 @@ def _symbol_from_match(capture_dict: dict, file: _SymbolPass) -> tuple[Symbol, N
     params_nodes = capture_dict.get("symbol.params", [])
     params_text = _node_text(params_nodes[0], src) if params_nodes else ""
     scope = _id_scope(def_node, parent_name, config, language, src)
-    sym_id = f"{file_info.path}::{scope}::{name}" if scope else f"{file_info.path}::{name}"
+    sym_id = (
+        make_symbol_id(file_info.path, scope, name) if scope else make_symbol_id(file_info.path, name)
+    )
     symbol = Symbol(
         id=sym_id,
         name=name,
@@ -448,6 +522,12 @@ def _kind_and_end_line(
         kind = _module_binding_kind(def_node, name, language, src)
         if kind is None:
             return None
+    elif def_node.type == "assignment_expression":
+        # ``obj.f = function () {}``: the query matched a function value. One
+        # assigned per call (a constructor's ``self.f = ...``) declares nothing.
+        if not ts_assignment_runs_at_load(def_node):
+            return None
+        kind = "function"
     return kind, end_line
 
 
@@ -500,6 +580,8 @@ def _symbol_kind(
     # def the caller has placed already (``keep_nested``), a Perl named
     # ``sub``, which is package-global wherever it is declared, and a Tcl
     # ``proc``, which defines a real command when the proc around it runs.
+    if language == "tcl" and node_type == "procedure" and is_tcl_switch_arm(def_node):
+        return None
     if (
         not keep_nested
         and node_type not in _MODULE_ANCHORED_NODE_TYPES
@@ -718,7 +800,7 @@ def _python_assignment_alias_symbols(
         extra.append(
             replace(
                 symbol,
-                id=f"{file_path}::{target}::alias@{def_node.start_byte}",
+                id=make_symbol_id(file_path, target, f"alias@{def_node.start_byte}"),
                 name=target,
                 qualified_name=_build_qualified_name(file_path, None, target),
                 alias_of=terminal if target != terminal else None,

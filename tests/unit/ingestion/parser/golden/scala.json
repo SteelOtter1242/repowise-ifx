@@ -176,7 +176,6 @@
         "receiver_call": null,
         "start_byte": 284,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -194,7 +193,6 @@
         "receiver_call": null,
         "start_byte": 336,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -212,7 +210,6 @@
         "receiver_call": null,
         "start_byte": 359,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -230,7 +227,6 @@
         "receiver_call": null,
         "start_byte": 449,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1265,7 +1261,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "import scala.concurrent.{Await, Future}",
@@ -1291,7 +1288,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "import scala.concurrent.{Await, Future}",
@@ -1317,7 +1315,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "import scala.concurrent.duration.Duration",
@@ -1343,7 +1342,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "import scala.io.Source",
@@ -1369,7 +1369,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       }
     ],
     "exports": [
@@ -1387,7 +1388,6 @@
         "receiver_call": null,
         "start_byte": 542,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1405,7 +1405,6 @@
         "receiver_call": null,
         "start_byte": 746,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1423,7 +1422,6 @@
         "receiver_call": null,
         "start_byte": 988,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1441,7 +1439,6 @@
         "receiver_call": null,
         "start_byte": 1055,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1459,7 +1456,6 @@
         "receiver_call": null,
         "start_byte": 1251,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1477,7 +1473,6 @@
         "receiver_call": null,
         "start_byte": 1804,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1495,7 +1490,6 @@
         "receiver_call": null,
         "start_byte": 1867,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1513,7 +1507,6 @@
         "receiver_call": null,
         "start_byte": 1972,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1531,7 +1524,6 @@
         "receiver_call": null,
         "start_byte": 2198,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -1549,7 +1541,6 @@
         "receiver_call": null,
         "start_byte": 2313,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,

@@ -94,6 +94,8 @@ SPEC = LanguageSpec(
     grammar_loader="get_language",
     grammar_loader_args=("tcl",),
     scm_file="tcl.scm",
+    # tcltest suites (``*.test``): read as Tcl when they load tcltest.
+    test_extensions=frozenset({".test"}),
     lock_files=(),
     shebang_tokens=("tclsh", "wish"),
     builtin_calls=_TCL_BUILTINS,
