@@ -86,7 +86,18 @@ function useChurnExtras(repoId: string, wanted: boolean) {
         : undefined,
     [data],
   );
-  return { extras, loading: wanted && isLoading && !data };
+  const quietSince =
+    wanted && data && data.total === 0 ? (data.latest_change_at ?? null) : undefined;
+  return { extras, loading: wanted && isLoading && !data, quietSince };
+}
+
+function ChurnQuietNotice({ since }: { since: string | null }) {
+  return (
+    <p role="status" className="text-sm text-[var(--color-text-secondary)]">
+      No recent churn data for scored files
+      {since ? ` · latest indexed change ${since.slice(0, 10)}` : ""}
+    </p>
+  );
 }
 
 export function TriageTab({
@@ -196,7 +207,12 @@ export function TriageTab({
       highlightPaths={highlightPaths}
       hotspotsSlot={hotspotsSlot}
       trendSlot={trendSlot}
-      leadSlot={<FixFirstSection repoId={id} />}
+      leadSlot={
+        <>
+          <FixFirstSection repoId={id} />
+          {churn.quietSince !== undefined && <ChurnQuietNotice since={churn.quietSince} />}
+        </>
+      }
       area={area}
       onAreaChange={setArea}
       fileExtras={churn.extras}

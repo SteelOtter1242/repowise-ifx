@@ -361,6 +361,7 @@ class RepoTotals:
     # anchors. Doubles as this capture's *prior* record — see
     # :func:`capture_repo_totals`.
     churn_anchor_sha: str | None = None
+    history_pathspecs: tuple[str, ...] = ()
 
 
 # Lifetime churn walks every commit's shortstat, so unlike the other totals it
@@ -391,7 +392,9 @@ _CHURN_REANCHOR_STRIDE = 100
 _SHORTSTAT_RE = re.compile(r"(\d+) insertions?\(\+\)|(\d+) deletions?\(-\)")
 
 
-def _walk_churn(repo: Any, rev: str) -> tuple[int | None, int | None]:
+def _walk_churn(
+    repo: Any, rev: str, pathspecs: Sequence[str] = ()
+) -> tuple[int | None, int | None]:
     """Sum ``git log --shortstat`` over *rev*, or ``(None, None)`` if git failed.
 
     *rev* is either a single commit (the whole history reachable from it) or a
@@ -399,7 +402,15 @@ def _walk_churn(repo: Any, rev: str) -> tuple[int | None, int | None]:
     shows no diff for them without ``-m`` — so the two forms compose exactly.
     """
     try:
-        out = repo.git.log("--shortstat", "--pretty=tformat:", rev)
+        if pathspecs:
+            from .history_scope import history_git
+
+            out = history_git(
+                repo, "log", ["--shortstat", "--pretty=tformat:", "--no-renames"],
+                rev, tuple(pathspecs),
+            )
+        else:
+            out = repo.git.log("--shortstat", "--pretty=tformat:", rev)
     except Exception:
         return None, None
     added = deleted = 0
@@ -528,8 +539,8 @@ def _lifetime_churn(
 _TRAILER_PERSON_RE = re.compile(r"^\s*(?P<name>[^<]*?)\s*<(?P<email>[^>]*)>\s*$")
 
 
-def repo_people(repo: Any, rev: str = "HEAD") -> IdentityResolver:
-    """The shared people resolver over every non-merge author reachable from *rev*.
+def repo_people(repo: Any, rev: str = "HEAD", pathspecs: Sequence[str] = ()) -> IdentityResolver:
+    """The shared people resolver over non-merge authors reachable from *rev*.
 
     One ``git log --no-merges`` pass reads each commit's mailmap-applied author
     and its ``Co-authored-by`` trailers (evidence only, see
@@ -539,11 +550,16 @@ def repo_people(repo: Any, rev: str = "HEAD") -> IdentityResolver:
     """
     from repowise.core.analysis.owners import people_resolver
 
-    out = repo.git.log(
+    options = [
         "--no-merges",
         "--format=%aN%x00%aE%x00%(trailers:key=Co-authored-by,valueonly,separator=%x1f)",
-        rev,
-    )
+    ]
+    if pathspecs:
+        from .history_scope import history_git
+
+        out = history_git(repo, "log", options, rev, tuple(pathspecs))
+    else:
+        out = repo.git.log(*options, rev)
     rows = []
     for line in out.splitlines():
         name, _, rest = line.partition("\0")
@@ -557,17 +573,22 @@ def repo_people(repo: Any, rev: str = "HEAD") -> IdentityResolver:
     return people_resolver(commit_rows=rows)
 
 
-def count_people(repo: Any, rev: str) -> int:
+def count_people(repo: Any, rev: str, pathspecs: Sequence[str] = ()) -> int:
     """Humans who authored a non-merge commit reachable from *rev*.
 
     The shared people resolver folds one person's several names and emails
     into one. Automation is not counted.
     """
-    return len(repo_people(repo, rev).people())
+    return len(repo_people(repo, rev, pathspecs).people())
 
 
 def capture_repo_totals(
-    repo: Any, prior: RepoTotals | None = None, people: IdentityResolver | None = None
+    repo: Any,
+    prior: RepoTotals | None = None,
+    people: IdentityResolver | None = None,
+    *,
+    pathspecs: Sequence[str] = (),
+    head_sha: str | None = None,
 ) -> RepoTotals:
     """Whole-history stats for *repo* via a handful of cheap git calls.
 
@@ -595,7 +616,7 @@ def capture_repo_totals(
       all-time count of people (see :func:`count_people`).
 
     *people* is a :func:`repo_people` resolver the caller already built over
-    the same history; passing it skips the author walk.
+    the whole history; it skips the author walk only for unscoped totals.
 
     Lifetime churn is the one exception: it walks the history, so it is capped
     (see :func:`_lifetime_churn`).
@@ -603,24 +624,42 @@ def capture_repo_totals(
     Each field is captured under its own ``try`` so one failure (empty/unborn
     HEAD, detached state, git unavailable) never voids the others.
     """
-    totals = RepoTotals()
+    totals = RepoTotals(history_pathspecs=tuple(pathspecs))
 
-    head_sha: str | None = None
-    with contextlib.suppress(Exception):
-        head_sha = repo.head.commit.hexsha
+    if head_sha is None:
+        with contextlib.suppress(Exception):
+            head_sha = repo.head.commit.hexsha
     # An unresolvable HEAD (unborn, no repo) leaves every call below on the name,
     # exactly as before; the anchor is simply not stored for such a capture.
     rev = head_sha or "HEAD"
+    def history(command: str, options: list[str]) -> str:
+        if pathspecs:
+            from .history_scope import history_git
+
+            return history_git(repo, command, options, rev, tuple(pathspecs))
+        return getattr(repo.git, command)(*options, rev)
+
+    if prior is not None and prior.history_pathspecs != tuple(pathspecs):
+        prior = None
 
     with contextlib.suppress(Exception):
-        totals.total_commit_count = int(repo.git.rev_list("--count", "--no-merges", rev).strip())
+        totals.total_commit_count = int(
+            history("rev_list", ["--count", "--no-merges"]).strip()
+        )
     with contextlib.suppress(Exception):
-        totals.total_merge_commit_count = int(repo.git.rev_list("--count", "--merges", rev).strip())
+        totals.total_merge_commit_count = int(
+            history("rev_list", ["--count", "--merges"]).strip()
+        )
 
     try:
         # A shallow clone lists its cut commits as roots; they found nothing.
         cut = shallow_roots(str(repo.working_dir))
-        roots = repo.git.rev_list("--max-parents=0", rev).split()
+        if pathspecs:
+            dated = history("log", ["--no-merges", "--format=%ct %H"]).splitlines()
+            earliest = min(reversed(dated), key=lambda row: int(row.split()[0])) if dated else ""
+            roots = [earliest.split()[1]] if earliest else []
+        else:
+            roots = repo.git.rev_list("--max-parents=0", rev).split()
         root_commits = [repo.commit(sha) for sha in roots if sha and sha not in cut]
         if root_commits:
             oldest = min(root_commits, key=lambda c: c.committed_datetime)
@@ -640,12 +679,16 @@ def capture_repo_totals(
 
     with contextlib.suppress(Exception):
         totals.total_contributor_count = (
-            len(people.people()) if people is not None else count_people(repo, rev)
+            len(people.people()) if people is not None and not pathspecs else count_people(repo, rev, pathspecs)
         )
 
-    totals.total_lines_added, totals.total_lines_deleted = _lifetime_churn(
-        repo, totals.total_commit_count, rev, head_sha, prior
-    )
+    if pathspecs:
+        if totals.total_commit_count is not None and totals.total_commit_count <= _CHURN_COMMIT_CEILING:
+            totals.total_lines_added, totals.total_lines_deleted = _walk_churn(repo, rev, pathspecs)
+    else:
+        totals.total_lines_added, totals.total_lines_deleted = _lifetime_churn(
+            repo, totals.total_commit_count, rev, head_sha, prior
+        )
     # Only a capture that produced churn gets to move the anchor. Storing one for
     # a skipped or failed walk would leave the next fold adding a range onto
     # totals that never covered its start.
