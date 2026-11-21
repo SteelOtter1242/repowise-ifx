@@ -11,13 +11,19 @@ import { formatDateWith } from "../lib/format";
  * The date stays in UTC on purpose: it is a fact about the project, not the
  * reader, so two people looking at the same repo see the same founding day.
  */
-export function OriginBlock({ data }: { data: StatsOrigin }) {
+export function OriginBlock({
+  data,
+  isScoped = false,
+}: {
+  data: StatsOrigin;
+  isScoped?: boolean;
+}) {
   if (!data.first_commit_at) return null;
   const author = data.first_commit_author;
 
   return (
     <p className="break-words text-xs leading-relaxed text-[var(--color-text-secondary)]">
-      Root commit,{" "}
+      {isScoped ? "First commit in scope" : "Root commit"},{" "}
       {formatDateWith(data.first_commit_at, {
         month: "short",
         day: "numeric",
