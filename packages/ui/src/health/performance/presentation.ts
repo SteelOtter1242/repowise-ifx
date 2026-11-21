@@ -80,7 +80,10 @@ export const FACET_LABEL: Record<PerformanceFacetKey, string> = {
 };
 
 const PROOF_LABEL: Record<PerformanceCostProof, string> = {
-  proven: "Measured",
+  // Static: the code shows how the cost scales (a loop that grows with data or
+  // is bounded, a per-call cost, or a shape that grows by itself). Nothing
+  // timed it, so this never says "measured".
+  proven: "Loop size known",
   unproven: "Unproven: loop size unknown",
   background_unproven: "Unproven: scheduled job, growth not shown",
 };
@@ -221,6 +224,8 @@ const CAUSE_BY_MARKER: Record<string, (boundary: C4IoKind | null) => string> = {
   blocking_io_under_lock: (b) => `${b ? boundaryNoun(b) : "I/O"} call made while a lock is held`,
   resource_construction_in_loop: (b) =>
     `${b ? boundaryNoun(b) : "Resource"} client constructed on every iteration`,
+  // No static finding: a leading run measured the function above the lead bar.
+  measured_hotspot: () => "Measured hotspot with no static cause",
 };
 
 /** The cause in words: "Database call inside a loop". */
@@ -239,10 +244,15 @@ export function opportunityCause(opportunity: PerformanceOpportunity): string {
  */
 export function opportunitySubject(opportunity: PerformanceOpportunity): string {
   const symbol = opportunity.intervention_symbol?.trim();
-  if (symbol) return moduleScopeLabel(symbol, true) ?? symbol.split("::").pop() ?? symbol;
+  if (symbol) return symbolSubject(symbol);
   const first = opportunity.evidence[0]?.function_name;
   if (first) return first;
   return opportunity.file_path.split("/").pop() ?? opportunity.file_path;
+}
+
+/** A symbol id's short name, without its path: `render_block`. */
+export function symbolSubject(symbolId: string): string {
+  return moduleScopeLabel(symbolId, true) ?? symbolId.split("::").pop() ?? symbolId;
 }
 
 /**
@@ -318,6 +328,8 @@ export function whyRankedPhrase(factor: PerformanceWhyRanked): string {
       return value === "grows_with_data" ? "grows with the data" : humanizeToken(String(value));
     case "provenance":
       return value === "call-site" ? "seen at the call site" : humanizeToken(String(value));
+    case "measured_rank":
+      return typeof value === "number" ? `place ${value} in its measured run` : "a measured run";
     default:
       return whyRankedLabel(factor);
   }
@@ -377,7 +389,9 @@ function asSentence(text: string): string {
 export function causeStandingText(opportunity: PerformanceOpportunity): string {
   const plan = planPresentation(opportunity);
   return [
-    `${ACTIONABILITY_LABEL[opportunity.actionability_state]}: ${humanizeToken(opportunity.actionability_reason)}`,
+    opportunity.actionability_reason
+      ? `${ACTIONABILITY_LABEL[opportunity.actionability_state]}: ${humanizeToken(opportunity.actionability_reason)}`
+      : ACTIONABILITY_LABEL[opportunity.actionability_state],
     plan.detail.trim() ? `${plan.label}: ${plan.detail}` : plan.label,
     `The call path resolved with ${CONFIDENCE_LABEL[opportunity.confidence].toLowerCase()} confidence`,
   ]
@@ -394,6 +408,7 @@ const FIX_STRATEGY_LABEL: Record<string, string> = {
   shrink_lock_scope: "Move the work out of the lock",
   push_reduction_into_query: "Do the reduction in the query",
   eager_load_relationship: "Load the relationship eagerly",
+  reduce_measured_self_time: "Find and cut the work the run measured",
 };
 
 export function fixStrategyLabel(strategy: string): string {

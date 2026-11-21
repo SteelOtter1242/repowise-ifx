@@ -508,7 +508,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "import java.util.List;",
@@ -534,7 +535,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "import java.util.regex.Pattern;",
@@ -560,7 +562,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "import org.springframework.data.jpa.repository.JpaRepository;",
@@ -586,7 +589,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       }
     ],
     "exports": [],
@@ -602,7 +606,6 @@
         "receiver_call": null,
         "start_byte": 789,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -622,7 +625,6 @@
         "receiver_call": null,
         "start_byte": 982,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -642,7 +644,6 @@
         "receiver_call": null,
         "start_byte": 1151,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -660,7 +661,6 @@
         "receiver_call": null,
         "start_byte": 1181,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -680,7 +680,6 @@
         "receiver_call": null,
         "start_byte": 1509,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -700,7 +699,6 @@
         "receiver_call": null,
         "start_byte": 2020,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -718,7 +716,6 @@
         "receiver_call": null,
         "start_byte": 2155,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -738,7 +735,6 @@
         "receiver_call": null,
         "start_byte": 2308,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -758,7 +754,6 @@
         "receiver_call": null,
         "start_byte": 2409,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": true,
@@ -782,7 +777,6 @@
         },
         "start_byte": 2421,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,

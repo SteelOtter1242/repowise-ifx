@@ -301,7 +301,7 @@ export interface HealthFileMetric {
   is_test?: boolean;
   /**
    * Where the file's code comes from (`production`, `test`, `vendored`,
-   * `generated`, `docs_example`, `tooling`, `build`). `null` on rows scored
+   * `generated`, `docs_example`, `tooling`, `build`, `data`). `null` on rows scored
    * before the column existed; absent on payloads that do not carry it.
    */
   code_origin?: string | null;
@@ -466,6 +466,13 @@ export interface PerformanceOpportunityFacets {
   growth_source?: PerformanceGrowthSource;
   /** Absent on rows stored before the fact existed. */
   execution_role?: PerformanceExecutionRole;
+  /** The workload whose stored run measured the cause's function; absent when none did. */
+  measured?: string;
+  /** The unit-test workload that measured it, when no leading workload did. */
+  measured_in_tests?: string;
+  /** What confirmed the cause: a measured run, a measured test run, or query
+   *  counts that grow. Absent otherwise. */
+  confirmed?: "measured" | "measured_in_tests" | "query_count";
 }
 
 /**
@@ -514,6 +521,29 @@ export interface PerformanceOpportunityPlanEconomics {
   risk: number;
 }
 
+/** `confirmed` and `measured` lead the queue, except a cause measured
+ *  against its cold name (startup, migration), which keeps its static place
+ *  like the rest. `not_exercised` names the leading workloads that ran ("not
+ *  exercised in <workload>"). */
+export type PerformanceEvidenceState =
+  | "confirmed"
+  | "measured"
+  | "counter_evidence"
+  | "ran"
+  | "not_exercised";
+
+export interface PerformanceEvidenceMark {
+  state: PerformanceEvidenceState;
+  /** `query_count`, `measured` or `measured_in_tests` for `confirmed`;
+   *  `measured_in_tests` for `measured` when only a unit-test run ranks it;
+   *  `query_count` for `counter_evidence` and `ran`. */
+  basis?: "query_count" | "measured" | "measured_in_tests";
+  /** The workload that ranks the cause's loop owner (`measured`). */
+  workload?: string;
+  /** The leading workloads that ran and never reached it (`not_exercised`). */
+  workloads?: string[];
+}
+
 export interface PerformanceOpportunity {
   opportunity_id: string;
   /** Ids are stable within a model version and never translated across one. */
@@ -552,7 +582,9 @@ export interface PerformanceOpportunity {
   /** What fixing this cause buys, in the words Fix first uses. Absent on an older server. */
   gain_text?: string;
   actionability_state: PerformanceActionabilityState;
-  actionability_reason: string;
+  /** Why the cause sits in its state. The detail view only: a summary row
+   *  (the queue's list) leaves it out. */
+  actionability_reason?: string;
   prerequisites: string[];
   rank_score: number;
   /** 0-based place in the ranked list that served the row; another sort or a
@@ -570,6 +602,10 @@ export interface PerformanceOpportunity {
   /** The measurement note when the row's language cell is served as a preview;
    *  null or absent for a validated cell. */
   preview?: string | null;
+  /** What runtime evidence says about this cause (`perf.serving.evidence_mark`).
+   *  On the dashboard's rows only; absent when the repository has no runtime
+   *  evidence. */
+  runtime_evidence?: PerformanceEvidenceMark;
   /** Exact stored match. Never inferred from file, marker, or rank. */
   plan_id: string | null;
   plan_status: PerformancePlanStatus;

@@ -436,7 +436,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "\"net/http\"",
@@ -462,7 +463,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "\"os\"",
@@ -488,7 +490,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       },
       {
         "raw_statement": "\"regexp\"",
@@ -514,7 +517,8 @@
         "is_reexport": false,
         "is_module_declaration": false,
         "type_only": false,
-        "deferred": false
+        "deferred": false,
+        "scopes": null
       }
     ],
     "exports": [],
@@ -530,7 +534,6 @@
         "receiver_call": null,
         "start_byte": 663,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -548,7 +551,6 @@
         "receiver_call": null,
         "start_byte": 807,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -566,7 +568,6 @@
         "receiver_call": null,
         "start_byte": 919,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -584,7 +585,6 @@
         "receiver_call": null,
         "start_byte": 1041,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -602,7 +602,6 @@
         "receiver_call": null,
         "start_byte": 1106,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -620,7 +619,6 @@
         "receiver_call": null,
         "start_byte": 1244,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -638,7 +636,6 @@
         "receiver_call": null,
         "start_byte": 1326,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -656,7 +653,6 @@
         "receiver_call": null,
         "start_byte": 1767,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,
@@ -674,7 +670,6 @@
         "receiver_call": null,
         "start_byte": 1968,
         "scope_name": null,
-        "namespace": null,
         "edge_type": "calls",
         "supplied_props": null,
         "bare_name_fallback": false,

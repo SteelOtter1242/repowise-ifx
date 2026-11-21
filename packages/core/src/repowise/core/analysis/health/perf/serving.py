@@ -12,7 +12,7 @@ Rows may be ORM rows, SQL rows or mappings; every read goes through
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -32,9 +32,10 @@ from repowise.core.analysis.health.queue.eligibility import (
 from repowise.core.analysis.health.queue_rules import NULL_VALUE, Facet, FilterRule, SortKeys
 from repowise.core.analysis.health.rows import detail_map, field, json_field
 from repowise.core.analysis.health.worth import LOW_PRIORITY_LABEL
+from repowise.core.ingestion.symbol_identity import file_of_symbol
 
 from .opportunities import PERFORMANCE_MODEL_VERSION
-from .opportunity_rank import NON_LEADING_MARKERS
+from .opportunity_rank import NON_LEADING_MARKERS, evidence_state
 
 if TYPE_CHECKING:
     from .opportunities import PerformanceOpportunity
@@ -418,7 +419,7 @@ class PerformanceQuery:
     @property
     def proofs(self) -> frozenset[str] | None:
         """``unproven`` when asked for; else, under another context or state,
-        the measured causes, so every surface lists what the default queue
+        the proven causes, so every surface lists what the default queue
         counts. ``None`` for the default queue. The ``proof`` facet says how
         many unproven ones sit one filter away."""
         if self.default_queue or self.proof == ANY:
@@ -563,7 +564,7 @@ def intervention_file(opportunity: PerformanceOpportunity) -> str:
     """The file a reader would open first: the intervention, else the evidence."""
     symbol = opportunity.intervention_symbol
     if symbol:
-        return symbol.split("::", 1)[0]
+        return file_of_symbol(symbol)
     return opportunity.evidence[0]["file_path"] if opportunity.evidence else ""
 
 
@@ -572,8 +573,52 @@ def intervention_file(opportunity: PerformanceOpportunity) -> str:
 # ---------------------------------------------------------------------------
 
 
+EVIDENCE_STATES = ("confirmed", "measured", "counter_evidence", "ran", "not_exercised")
+"""Every ``state`` :func:`evidence_mark` returns."""
+
+
+def evidence_mark(facets: Mapping[str, Any], workloads: Sequence[str]) -> dict[str, Any] | None:
+    """What runtime evidence says about one cause, for a person's list, or ``None``.
+
+    ``confirmed`` (``basis`` ``query_count``, ``measured`` or
+    ``measured_in_tests``) and ``measured`` (``workload`` names the workload
+    that ranks its loop owner, with ``basis`` ``measured_in_tests`` when only a
+    unit-test run does) say what the evidence found; the queue puts them first
+    (``opportunity_rank.evidence_tier``) unless the cause was only ranked
+    against its cold name, which keeps its static place.
+    ``counter_evidence``: query counts stayed flat as the items grew. ``ran``:
+    query counts reached it and settle nothing. ``not_exercised``: no run
+    reached it, and ``workloads`` names the leading workloads that ran; the
+    cause stays listed in its static place. With no leading workload and no
+    evidence facet there is nothing to say. Ceiling: a function a run sampled
+    too rarely to rank reads as not exercised; the run's own counts would
+    tell the two apart.
+    """
+    state = evidence_state(facets)
+    if state == "confirmed":
+        return {"state": state, "basis": facets["confirmed"]}
+    if state in ("counter_evidence", "ran"):
+        return {"state": state, "basis": "query_count"}
+    if state == "measured":
+        if facets.get("measured"):
+            return {"state": state, "workload": facets["measured"]}
+        return {
+            "state": state,
+            "basis": "measured_in_tests",
+            "workload": facets["measured_in_tests"],
+        }
+    if workloads:
+        return {"state": "not_exercised", "workloads": list(workloads)}
+    return None
+
+
 def serialize(
-    row: Any, link: PlanLink, *, summary: bool = False, decisions: bool = False
+    row: Any,
+    link: PlanLink,
+    *,
+    summary: bool = False,
+    decisions: bool = False,
+    workloads: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Rebuild the canonical opportunity payload from row plus details.
 
@@ -587,6 +632,10 @@ def serialize(
 
     ``rank_position`` is the stored rank; a list serves
     :func:`served_position` in its place.
+
+    ``workloads`` (the leading workloads the stored causes were judged
+    against, ``None`` for a caller that shows no evidence) adds ``runtime_evidence``,
+    the :func:`evidence_mark`, when it has something to say.
     """
     details = detail_map(row)
     payload = {
@@ -619,6 +668,11 @@ def serialize(
         # Why it can wait; the stored rank already orders by loop size.
         "lower_priority": LOW_PRIORITY_LABEL.get(perf_low_priority(row) or ""),
     }
+    if workloads is not None and (
+        mark := evidence_mark(details.get("facets") or {}, workloads)
+    ):
+        # Not ``evidence``: that key is the raw observations a list may add.
+        payload["runtime_evidence"] = mark
     if summary:
         return {**payload, **_decision_fields(row, details)} if decisions else payload
     return {**payload, **_decision_fields(row, details), **_detail_fields(row, details)}
@@ -811,6 +865,7 @@ __all__ = [
     "DEFAULT_ACTIONABILITIES",
     "DEFAULT_CONTEXT",
     "DEFAULT_SORT",
+    "EVIDENCE_STATES",
     "FACETS",
     "FACET_FIELDS",
     "FILTERS",
@@ -823,6 +878,7 @@ __all__ = [
     "PerformanceQuery",
     "PlanLink",
     "area_facet",
+    "evidence_mark",
     "evidence_payload",
     "facet_counts",
     "fold_facets",
