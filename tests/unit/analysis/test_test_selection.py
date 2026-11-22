@@ -1235,7 +1235,57 @@ def test_function_coverage_still_runs_the_tests_every_subset_runs() -> None:
 
 
 def test_tcl_dot_test_files_are_collected_and_their_helpers_are_code() -> None:
-    assert is_runnable_test("tests/parser.test")
+    assert is_runnable_test("tests/parser.test", is_test=True)
+    assert is_runnable_test("generic/parser.test", is_test=True)
+    assert not is_runnable_test("tests/parser.test")
+    assert not is_runnable_test("data/input.test")
+    assert not is_runnable_test("data/input.test", is_test=False)
     assert is_code_file("tests/helpers.tcl") and is_test_helper("tests/helpers.tcl")
     assert not is_runnable_test("tests/all.tcl")
     assert not is_runnable_test("tests/helpers.tcl")
+
+
+def test_indexed_tcl_test_outside_test_tree_is_selected() -> None:
+    test = "generic/parser.test"
+    tiers = _tiers(inferred=[_inferred("lib/parser.tcl", test, "import-graph")])
+    sel = _select(["lib/parser.tcl"], tiers, known_tests=[test])
+    assert not sel.run_all
+    assert sel.test_files == (test,)
+
+
+@pytest.mark.parametrize("test", ["generic/parser.test", "tests/parser.test"])
+def test_changed_indexed_tcl_test_selects_itself(test: str) -> None:
+    tiers = _tiers(inferred=[_inferred(test, test, "changed-test")])
+    sel = _select([test], tiers, known_tests=[test])
+    assert not sel.run_all
+    assert sel.test_files == (test,)
+
+
+def test_checkout_tcl_tests_are_detected_from_contents() -> None:
+    from repowise.core.analysis.test_collection import Checkout, _checkout_tests
+
+    texts = {
+        "generic/parser.test": "package require tcltest\n",
+        "tests/input.test": "plain data\n",
+        "tests/missing.test": None,
+    }
+    checkout = Checkout(
+        tracked=list(texts),
+        pytest_texts=[],
+        roots=read_pytest_roots(()),
+        read=texts.get,
+        exists=lambda path: path in texts,
+    )
+    tests, unreadable = _checkout_tests(checkout)
+    assert tests == ["generic/parser.test"]
+    assert unreadable == ["tests/missing.test"]
+
+
+def test_conftest_import_check_recognizes_indexed_tcl_tests() -> None:
+    from repowise.core.analysis.conftest_routes import _add_import_check, _Scope
+
+    scope = _Scope([], {}, ["tests/a.test", "tests/b.test"], True)
+    chosen: dict[str, str] = {}
+    assert _add_import_check("tests/conftest.py", chosen, scope) == "tests/a.test"
+    assert _add_import_check("tests/conftest.py", chosen, scope) is None
+    assert chosen == {"tests/a.test": "conftest-import-check"}

@@ -38,6 +38,8 @@ def _extract_imports(
         # A Tcl switch arm parses as a command named by its pattern.
         if language == "tcl" and is_tcl_switch_arm(stmt_node):
             continue
+        if language == "tcl" and module_nodes[0].type == "quoted_word" and module_nodes[0].named_children:
+            continue
         if rules.deduped is not None:
             imports.extend(rules.deduped(stmt_node, module_nodes[0], src, seen_own))
             continue

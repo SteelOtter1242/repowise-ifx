@@ -1218,7 +1218,7 @@ class _Scope:
         """The first runnable test file by path under *prefix*, asked once per conftest."""
         if prefix not in self._first:
             self._first[prefix] = min(
-                (t for t in self.test_files if t.startswith(prefix) and is_runnable_test(t)),
+                (t for t in self.test_files if t.startswith(prefix) and is_runnable_test(t, is_test=True)),
                 default=None,
             )
         return self._first[prefix]
@@ -1302,7 +1302,10 @@ def _test_importers(conf: str, scope: _Scope) -> set[str]:
 def _add_import_check(conf: str, result: dict[str, str], scope: _Scope) -> str | None:
     """Add a test under *conf* to import it when the selection holds none; the test added."""
     prefix = _dir_prefix(conf)
-    if any(t.startswith(prefix) and is_runnable_test(t) for t in result):
+    if any(
+        t.startswith(prefix) and is_runnable_test(t, is_test=True if t in scope.test_files else None)
+        for t in result
+    ):
         return None
     check = scope.first_test_under(prefix)
     if check:

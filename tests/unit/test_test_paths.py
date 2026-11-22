@@ -132,7 +132,10 @@ _CORPUS: tuple[tuple[str, str | None, str], ...] = (
     ("basic.t", "perl", "test"),
     # ...and a tcltest `.test` file is a test wherever it sits
     ("parser.test", "tcl", "test"),
-    ("generic/parser.test", None, "test"),
+    ("generic/parser.test", None, ""),
+    ("data/input.test", None, ""),
+    ("generic/parser.test", "tcl", "test"),
+    ("llvm/test/x.test", None, "test"),
     # ...a non-source file under t/ stays as it is without corroboration
     ("t/data/expected.json", None, ""),
     ("t/assets/image.png", None, ""),

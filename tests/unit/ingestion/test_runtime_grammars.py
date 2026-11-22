@@ -40,6 +40,16 @@ def test_loading_one_grammar_does_not_load_the_language_pack(
     assert "cobol" not in grammars._GRAMMAR_FAILURES
 
 
+def test_tcl_uses_bundled_grammar_even_with_an_offline_staged_cache(
+    fresh_registry: None, offline_pack: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setenv(grammars.GRAMMAR_DIR_ENV, str(tmp_path))
+
+    assert grammars._get_language("tcl") is not None
+    assert offline_pack == []
+    assert not grammars.downloads_grammar_at_runtime("tcl")
+
+
 def test_an_unloadable_runtime_grammar_is_reported_with_its_reason(
     fresh_registry: None, offline_pack: list[str]
 ) -> None:
@@ -150,12 +160,11 @@ def test_fetch_requests_every_runtime_grammar_into_the_given_dir(
     result = grammars.fetch_runtime_grammars(str(tmp_path))
 
     assert [c.cache_dir for c in configured] == [str(tmp_path)]
-    assert sorted(requested) == ["apex", "cobol", "perl", "tcl"]
+    assert sorted(requested) == ["apex", "cobol", "perl"]
     assert sorted(result) == [
         ("apex", False, ""),
         ("cobol", True, ""),
         ("perl", False, ""),
-        ("tcl", False, ""),
     ]
 
 
@@ -179,7 +188,6 @@ def test_fetch_reports_a_grammar_that_fails_to_load_even_when_its_file_is_cached
         ("apex", False, "RuntimeError"),
         ("cobol", False, "bad ELF header"),
         ("perl", False, "RuntimeError"),
-        ("tcl", False, "RuntimeError"),
     ]
 
 
@@ -321,7 +329,7 @@ def test_the_fetch_command_retries_a_transient_failure(
     calls, script = flaky_pack
     script.append(_download_error("Download error: http status: 503"))
     monkeypatch.setattr(pack, "configure", lambda config: None)
-    monkeypatch.setattr(pack, "downloaded_languages", lambda: ["apex", "cobol", "perl", "tcl"])
+    monkeypatch.setattr(pack, "downloaded_languages", lambda: ["apex", "cobol", "perl"])
 
     result = grammars.fetch_runtime_grammars(str(tmp_path))
 
@@ -329,9 +337,8 @@ def test_the_fetch_command_retries_a_transient_failure(
         ("apex", True, ""),
         ("cobol", True, ""),
         ("perl", True, ""),
-        ("tcl", True, ""),
     ]
-    assert len(calls) == 5
+    assert len(calls) == 4
 
 
 def test_an_update_names_a_failed_grammar_and_records_it_as_degraded(

@@ -927,12 +927,30 @@ async def _test_importers(
     return parents, routes
 
 
+def _checkout_tests(checkout: Checkout) -> tuple[list[str], list[str]]:
+    from ..ingestion.traverser import _tcltest_language
+    from .test_selection import is_runnable_test
+
+    tests: list[str] = []
+    unreadable: list[str] = []
+    for path in checkout.tracked:
+        if PurePosixPath(path).suffix.lower() != ".test":
+            if is_runnable_test(path, checkout.roots):
+                tests.append(path)
+            continue
+        text = checkout.read(path)
+        if text is None:
+            unreadable.append(path)
+        elif _tcltest_language(Path(path), text.encode("utf-8")) == "tcl":
+            tests.append(path)
+    return sorted(tests), sorted(unreadable)
+
+
 def select(change, result: dict, config, checkout: Checkout, plan: Plan) -> Selection:
     """The run-all-or-subset decision over *result* (from :func:`collect`)."""
     from .test_selection import (
         SelectionInput,
         is_documentation,
-        is_runnable_test,
         plugin_loader,
         select_tests,
     )
@@ -942,7 +960,7 @@ def select(change, result: dict, config, checkout: Checkout, plan: Plan) -> Sele
     tracked = checkout.tracked
     go_test_dirs = {str(Path(p).parent.as_posix()) for p in tracked if p.endswith("_test.go")}
     placed = result["placed_tests"]
-    known_tests = sorted(p for p in tracked if is_runnable_test(p, checkout.roots))
+    known_tests, unreadable_tests = _checkout_tests(checkout)
     return select_tests(
         SelectionInput(
             changed=change.files,
@@ -958,8 +976,12 @@ def select(change, result: dict, config, checkout: Checkout, plan: Plan) -> Sele
             index_problem=result["index_problem"]
             or (
                 None
-                if tracked
-                else "git could not list the checkout's files, so its tests are unknown."
+                if tracked and not unreadable_tests
+                else (
+                    f"Cannot read {unreadable_tests[0]}, so its test status is unknown."
+                    if unreadable_tests
+                    else "git could not list the checkout's files, so its tests are unknown."
+                )
             ),
             graph_error=result["graph_error"],
             missing={f for f in named if not checkout.exists(f)},

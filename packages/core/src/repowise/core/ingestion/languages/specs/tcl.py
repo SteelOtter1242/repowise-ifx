@@ -89,10 +89,8 @@ SPEC = LanguageSpec(
     display_name="Tcl",
     extensions=frozenset({".tcl"}),
     import_support="partial",
-    # tree-sitter-tcl from the language pack, loaded as COBOL's is.
-    grammar_package="tree_sitter_language_pack",
-    grammar_loader="get_language",
-    grammar_loader_args=("tcl",),
+    grammar_package="repowise_tree_sitter_tcl",
+    grammar_loader="language",
     scm_file="tcl.scm",
     # tcltest suites (``*.test``): read as Tcl when they load tcltest.
     test_extensions=frozenset({".test"}),

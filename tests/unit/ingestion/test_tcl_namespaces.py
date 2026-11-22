@@ -185,6 +185,31 @@ def test_sourced_procs_are_defined_in_the_sourcing_namespace(tmp_path: Path) -> 
     }
 
 
+def test_required_package_projects_sourced_procs_in_provider_namespace(tmp_path: Path) -> None:
+    sources = {
+        "provider.tcl": "package provide myutil 1.0\nnamespace eval N { source helpers.tcl }\n",
+        "helpers.tcl": "proc helper {} {}\n",
+        "main.tcl": "namespace eval Outer { package require myutil 1.0 }\n"
+        "proc run {} { ::N::helper }\n",
+    }
+    assert _calls_from(_build(tmp_path, sources), "main.tcl::run") == {
+        "helpers.tcl::helper": "scoped_name"
+    }
+
+
+def test_required_package_transitively_sources_calls_and_terminates_cycles(tmp_path: Path) -> None:
+    sources = {
+        "provider.tcl": "package provide myutil 1.0\nnamespace eval N { source helpers.tcl }\n",
+        "helpers.tcl": "source more.tcl\nproc run {} { helper }\n",
+        "more.tcl": "source helpers.tcl\nproc helper {} {}\n",
+        "main.tcl": "namespace eval Outer { package require myutil 1.0 }\n"
+        "proc run {} { ::N::helper }\n",
+    }
+    graph = _build(tmp_path, sources)
+    assert _calls_from(graph, "main.tcl::run") == {"more.tcl::helper": "scoped_name"}
+    assert _calls_from(graph, "helpers.tcl::run") == {"more.tcl::helper": "enclosing_class"}
+
+
 def test_transitively_sourced_procs_follow_nested_namespace_context(tmp_path: Path) -> None:
     sources = {
         "bin/lib.tcl": "namespace eval Inner { proc helper {} { return 1 } }\n",

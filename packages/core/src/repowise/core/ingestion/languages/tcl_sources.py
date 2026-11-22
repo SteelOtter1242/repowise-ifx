@@ -72,11 +72,13 @@ class TclSourceIndex:
             return cached
         reached: set[str] = set()
         procs: dict[ProcKey, list[ProcEntry]] = defaultdict(list)
-        if path not in self._parsed_files or not self._source_targets(path):
-            result = reached, {}
-            self._projections[path] = result
+        if path not in self._parsed_files or not (
+            self._source_targets(path) or self._package_targets(path)
+        ):
+            empty_projection: tuple[set[str], dict[ProcKey, list[ProcEntry]]] = reached, {}
+            self._projections[path] = empty_projection
             self._contexts[path] = {path: {""}}
-            return result
+            return empty_projection
         contexts: dict[str, set[str]] = defaultdict(set)
         pending: list[tuple[str, str, frozenset[str]]] = [(path, "", frozenset({path}))]
         visited: set[tuple[str, str]] = set()
@@ -96,6 +98,9 @@ class TclSourceIndex:
                 if target not in ancestors:
                     namespace = _execution_namespace(node.parent, base)
                     pending.append((target, namespace, ancestors | {target}))
+            for target in self._package_targets(current):
+                if target not in ancestors:
+                    pending.append((target, "", ancestors | {target}))
         result = reached, dict(procs)
         self._projections[path] = result
         self._contexts[path] = dict(contexts)
@@ -110,13 +115,14 @@ class TclSourceIndex:
             importers: dict[str, set[str]] = defaultdict(set)
             for source, parsed in self._parsed_files.items():
                 if parsed.file_info.language == "tcl":
-                    for target in self._source_targets(source).values():
+                    targets = (*self._source_targets(source).values(), *self._package_targets(source))
+                    for target in targets:
                         importers[target].add(source)
             self._importers = dict(importers)
         if path not in self._importers:
-            result = [(path, "")]
-            self._execution_contexts[path] = result
-            return result
+            direct = [(path, "")]
+            self._execution_contexts[path] = direct
+            return direct
         ancestors = {path}
         pending = [path]
         while pending:
@@ -158,6 +164,16 @@ class TclSourceIndex:
             ):
                 targets[imp.raw_statement] = target
         return targets
+
+    def _package_targets(self, path: str) -> set[str]:
+        return {
+            target
+            for imp in self._parsed_files[path].imports
+            if imp.raw_statement.split()[:2] == ["package", "require"]
+            and (target := imp.resolved_file) is not None
+            and target in self._parsed_files
+            and self._parsed_files[target].file_info.language == "tcl"
+        }
 
     def _file_sites(self, path: str) -> _FileSites:
         cached = self._sites.get(path)

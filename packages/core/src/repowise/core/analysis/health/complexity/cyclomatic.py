@@ -683,9 +683,7 @@ def _walk_function_body(
                 nesting_increment = 1
             # Side-channel: does not affect ccn/cognitive (boolean operators
             # are still tallied independently by the regular recursion below).
-            # A command-named construct has no condition field to read.
-            if kind == node.type:
-                conditions.extend(_compound_condition(node, lmap))
+            conditions.extend(_compound_condition(node, lmap, kind))
         elif node.id in bare_handler_ids:
             # A bare ``on T { }`` handler branches and nests like a catch clause.
             ccn_increment = nesting_increment = 1
@@ -809,8 +807,12 @@ def _walk_function_body(
     return ccn, max_nesting, cognitive, bumps, conditions
 
 
-def _compound_condition(node: Node, lmap: LanguageNodeMap) -> list[ConditionComplexity]:
+def _compound_condition(
+    node: Node, lmap: LanguageNodeMap, kind: str | None = None
+) -> list[ConditionComplexity]:
     """The compound boolean ops in *node*'s condition, as one record or none."""
+    if kind is not None and kind != node.type:
+        return []
     op_count = 0
     op_kinds: set[str] = set()
     negated = False

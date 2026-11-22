@@ -8,7 +8,7 @@ from dataclasses import replace
 from tree_sitter import Node
 
 from ..extractors import node_text
-from ..extractors.tcl import is_tcl_switch_arm, tcl_call_namespace
+from ..extractors.tcl import is_tcl_switch_arm, tcl_call_namespace, tcl_switch_arm_bodies
 from ..language_configs import LanguageConfig
 from ..models import STRING_LITERAL_RECEIVER, CallReceiver, CallSite, FileInfo, Symbol
 from ..parser_helpers import (
@@ -399,6 +399,18 @@ def _extract_calls(
         )
         if found is not None:
             calls.append(found)
+        for switch in capture_dict.get("tcl.switch", ()):
+            if is_tcl_switch_arm(switch):
+                continue
+            for body in tcl_switch_arm_bodies(switch):
+                if body.type != "simple_word":
+                    continue
+                found = _call_from_match(
+                    {"call.site": [body], "call.target": [body]},
+                    config, file_info.language, src, call_builtins, symbol_ranges,
+                )
+                if found is not None:
+                    calls.append(found)
     return _dedupe_calls(_fold_receiverless_twins(calls))
 
 

@@ -35,6 +35,17 @@ def test_extension_routes_to_tcl() -> None:
 
 
 class TestTclSymbols:
+    @pytest.mark.parametrize(
+        "arguments", [b'"x y"', b'"x {y 1}"', b'"$args"', b'"[list x y]"', b"$args", b"[list x y]"]
+    )
+    def test_proc_argument_words_do_not_hide_following_procs(
+        self, parser: ASTParser, arguments: bytes
+    ) -> None:
+        src = b"proc f " + arguments + b" { helper }\nproc g {} { other }\n"
+        result = parser.parse_file(_file(), src)
+        assert [s.name for s in result.symbols] == ["f", "g"]
+        assert result.parse_errors == []
+
     def test_procs_named_by_last_segment(self, parser: ASTParser) -> None:
         src = (
             b"namespace eval ::ns {\n"
@@ -85,8 +96,32 @@ class TestTclImports:
         )
         assert [i.module_path for i in result.imports] == ["myutil"]
 
+    @pytest.mark.parametrize("option", ["", "-exact "])
+    def test_quoted_package_name(self, parser: ASTParser, option: str) -> None:
+        result = parser.parse_file(_file(), f'package require {option}"myutil" 1.0\n'.encode())
+        assert [i.module_path for i in result.imports] == ["myutil"]
+
+    def test_interpolated_package_name_is_not_a_literal_import(self, parser: ASTParser) -> None:
+        result = parser.parse_file(_file(), b'package require "my$version" 1.0\n')
+        assert result.imports == []
+
 
 class TestTclCalls:
+    def test_semicolon_separates_commands_and_preserves_their_caller(self, parser: ASTParser) -> None:
+        src = b"proc f {} { helper; other; }\n"
+        result = parser.parse_file(_file(), src)
+        assert result.parse_errors == []
+        assert {c.target_name for c in result.calls} == {"helper", "other"}
+        assert all(c.caller_symbol_id == "scripts/flow.tcl::f" and c.line == 1 for c in result.calls)
+
+    def test_array_substitution_does_not_hide_following_calls(self, parser: ASTParser) -> None:
+        src = b"proc f {name} { set x $pending($name); helper $x }\n"
+        result = parser.parse_file(_file(), src)
+        assert result.parse_errors == []
+        assert [(c.target_name, c.caller_symbol_id) for c in result.calls] == [
+            ("helper", "scripts/flow.tcl::f")
+        ]
+
     def test_commands_builtins_and_qualified_names(self, parser: ASTParser) -> None:
         src = (
             b"proc f {x} {\n"
@@ -117,6 +152,32 @@ class TestTclCalls:
         result = parser.parse_file(_file(), src)
         assert {c.target_name for c in result.calls} == {"run_fast", "run_slow"}
 
+    @pytest.mark.parametrize(
+        "arms", ["fast run_fast default run_slow", "{fast run_fast default run_slow}"]
+    )
+    def test_bare_switch_bodies_are_calls(self, parser: ASTParser, arms: str) -> None:
+        result = parser.parse_file(_file(), f"proc f {{m}} {{ switch $m {arms} }}\n".encode())
+        assert {c.target_name for c in result.calls} == {"run_fast", "run_slow"}
+        assert all(c.caller_symbol_id == "scripts/flow.tcl::f" for c in result.calls)
+
+    def test_dynamic_switch_body_is_not_a_literal_call(self, parser: ASTParser) -> None:
+        result = parser.parse_file(_file(), b"proc f {m script} { switch $m fast $script }\n")
+        assert result.calls == []
+
+    def test_nested_switch_fallthrough_and_qualified_bodies(self, parser: ASTParser) -> None:
+        src = (
+            b"proc f {m n} {\n"
+            b"  switch $m {\n"
+            b"    first -\n"
+            b"    second { switch $n { fast ::ns::run default other } }\n"
+            b"    default puts\n"
+            b"  }\n"
+            b"}\n"
+        )
+        result = parser.parse_file(_file(), src)
+        assert {c.target_name for c in result.calls} == {"run", "other"}
+        assert all(c.caller_symbol_id == "scripts/flow.tcl::f" for c in result.calls)
+
     def test_a_switch_arm_named_source_is_not_an_import(self, parser: ASTParser) -> None:
         src = (
             b"proc f {m} {\n"
@@ -143,5 +204,8 @@ def test_a_tcltest_file_is_tcl_and_other_dot_test_files_are_not() -> None:
     assert _detect_language(
         Path("tests/exact.test"), b"package require -exact tcltest 2.5\ntcltest::test x {} {}\n"
     ) == "tcl"
+    assert _detect_language(Path("tests/quoted.test"), b'package require "tcltest"\n') == "tcl"
+    assert _detect_language(Path("tests/braced.test"), b"package require -exact {tcltest}\n") == "tcl"
+    assert _detect_language(Path("tests/dynamic.test"), b'package require "tcltest$version"\n') != "tcl"
     lit = b"; RUN: llvm-objdump -d %s | FileCheck %s\n"
     assert _detect_language(Path("llvm/test/x.test"), lit) != "tcl"
