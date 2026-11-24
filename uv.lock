@@ -3536,6 +3536,7 @@ dependencies = [
     { name = "pathspec" },
     { name = "pydantic" },
     { name = "pyyaml" },
+    { name = "repowise-tree-sitter-tcl" },
     { name = "rich" },
     { name = "scipy" },
     { name = "sqlalchemy", extra = ["asyncio"] },
@@ -3644,6 +3645,7 @@ requires-dist = [
     { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.3,<3" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.5,<4" },
     { name = "pyyaml", specifier = ">=6.0,<7" },
+    { name = "repowise-tree-sitter-tcl", git = "https://github.com/SteelOtter1242/tree-sitter-tcl.git?rev=a252b746b3e3e2d21309dcd6e9bc87ade332bfb9" },
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21,<1" },
     { name = "rich", specifier = ">=13,<14" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6,<1" },
@@ -3730,6 +3732,11 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [{ name = "repowise-core", editable = "packages/core" }]
+
+[[package]]
+name = "repowise-tree-sitter-tcl"
+version = "0.1.0"
+source = { git = "https://github.com/SteelOtter1242/tree-sitter-tcl.git?rev=a252b746b3e3e2d21309dcd6e9bc87ade332bfb9#a252b746b3e3e2d21309dcd6e9bc87ade332bfb9" }
 
 [[package]]
 name = "requests"

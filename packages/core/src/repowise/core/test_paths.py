@@ -363,17 +363,19 @@ def _is_package_root(
     return package_root is not None and package_root("/".join(dir_parts))
 
 
-def _is_test_name(filename: str) -> bool:
+def _is_test_name(filename: str, language: str | None = None) -> bool:
     """Whether the filename alone marks a test (test_x.py, x_test.go, x.spec.ts)."""
     if not filename:
         return False
     rules = _conventions()
     lowered = filename.lower()
     ext = PurePosixPath(lowered).suffix
-    if ext not in rules.source_exts:
-        return False
+    if ext == ".test":
+        return language == "tcl"
     if ext in rules.test_exts:
         return True
+    if ext not in rules.source_exts:
+        return False
     if ext in rules.exact_stem_exts and PurePosixPath(filename).stem in _TEST_EXACT_STEMS:
         return True
     stem = PurePosixPath(lowered).stem
@@ -465,7 +467,7 @@ def _has_test_segment(
     # (``spec/support/helper.rb`` is RSpec whatever the filename says, and
     # path-only callers have no language to go on).
     corroborated = (
-        _is_test_name(filename)
+        _is_test_name(filename, language)
         or _is_support_name(filename)
         or any(seg in _SUPPORT_DIR_TOKENS for seg in segments)
     )
@@ -591,7 +593,7 @@ def _classify_with_context(
     if _is_support_name(filename):
         return "support"
 
-    named_test = _is_test_name(filename)
+    named_test = _is_test_name(filename, language)
 
     # A scaffolding directory that needs no test tree around it settles the
     # question before the tree rules run, ``.github/`` included. A test-shaped

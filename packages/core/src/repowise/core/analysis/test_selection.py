@@ -513,6 +513,8 @@ def is_runnable_test(
     not classify as a test is not runnable whatever its name. Test support
     (``conftest.py``, fixtures, helpers) never is.
     """
+    if PurePosixPath(path).suffix.lower() == ".test":
+        return is_test is True
     return (
         is_test is not False
         and _runnable_name(path)
@@ -1484,11 +1486,16 @@ def _file_tests(
     scopes, basis = _scope_files(path, found, basis)
     tests = _function_scoped(path, _expand_scopes(path, tests, scopes, ev), covered, ev)
     helpers = sorted(
-        {f for _, f in found if not is_runnable_test(f)} - ev.deleted - scopes - {path}
+        {
+            f for _, f in found
+            if f is not None and not is_runnable_test(f, is_test=True if f in ev.known_tests else None)
+        }
+        - ev.deleted - scopes - {path}
     )
-    drop = {*helpers, path} if is_test_helper(path) else set(helpers)
+    own_helper = path not in ev.known_tests and is_test_helper(path)
+    drop = {*helpers, path} if own_helper else set(helpers)
     tests = [(t, f) for t, f in tests if f is None or f not in drop]
-    if is_test_helper(path):
+    if own_helper:
         return tests, "helper-importers", _own_helper_reasons(path, ev)
 
     reasons = _helper_route_reasons(path, helpers, tests, ev) + _unfiled_reasons(path, tests)
@@ -1671,7 +1678,7 @@ def expand_test_scopes(tests: Iterable[str], test_files: Collection[str]) -> lis
     tests = list(tests)
     if not any(scope_kind(t) for t in tests):
         return list(dict.fromkeys(tests))
-    runnable = sorted(t for t in test_files if is_runnable_test(t))
+    runnable = sorted(t for t in test_files if is_runnable_test(t, is_test=True))
     out: dict[str, None] = {}
     for test in tests:
         for expanded in _tests_under([test], runnable) if scope_kind(test) else (test,):

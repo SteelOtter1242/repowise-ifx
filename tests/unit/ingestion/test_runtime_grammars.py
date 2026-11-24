@@ -40,6 +40,16 @@ def test_loading_one_grammar_does_not_load_the_language_pack(
     assert "cobol" not in grammars._GRAMMAR_FAILURES
 
 
+def test_tcl_uses_bundled_grammar_even_with_an_offline_staged_cache(
+    fresh_registry: None, offline_pack: list[str], monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.setenv(grammars.GRAMMAR_DIR_ENV, str(tmp_path))
+
+    assert grammars._get_language("tcl") is not None
+    assert offline_pack == []
+    assert not grammars.downloads_grammar_at_runtime("tcl")
+
+
 def test_an_unloadable_runtime_grammar_is_reported_with_its_reason(
     fresh_registry: None, offline_pack: list[str]
 ) -> None:

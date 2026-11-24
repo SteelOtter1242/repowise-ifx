@@ -51,9 +51,9 @@ dependencies = [
     "tree-sitter-scala>=0.23,<1",
     "tree-sitter-php>=0.23,<1",
     "tree-sitter-pascal>=0.11,<1",
-    # No standalone Python wheel exists for COBOL. This pack supplies the
-    # maintained ABI-14 grammar and caches it on first use.
+    # COBOL and other grammars are cached on first use.
     "tree-sitter-language-pack>=1.14,<2",
+    "repowise-tree-sitter-tcl>=0.1.0,<0.2",
     "tree-sitter-luau>=1.2,<2",
     "tree-sitter-bash>=0.23,<1",
     "tree-sitter-gdscript>=6.1,<7",
@@ -191,6 +191,9 @@ members = [
     "packages/cli",
     "packages/server",
 ]
+
+[tool.uv.sources]
+repowise-tree-sitter-tcl = { git = "https://github.com/SteelOtter1242/tree-sitter-tcl.git", rev = "a252b746b3e3e2d21309dcd6e9bc87ade332bfb9" }
 
 [dependency-groups]
 dev = [
